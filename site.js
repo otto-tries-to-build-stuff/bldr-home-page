@@ -2,7 +2,7 @@
 // and nothing moves when the visitor has "reduce motion" turned on.
 (() => {
   const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const $$ = s => [...document.querySelectorAll(s)];
 
   // ---------- promo video plays only while on screen ----------
   const promo = document.getElementById('promo');
@@ -21,8 +21,13 @@
     $$('.steps li').forEach(li => stepObs.observe(li));
 
     // The phone is drawn at 360×720 and zoomed: on phones it shares the top of the screen with the steps.
+    // On phones only a width change resizes it, so the address bar sliding in and out doesn't.
+    let lastW = 0;
     const sizeFrame = () => {
-      const h = innerWidth >= 960 ? Math.min(innerHeight * .82, 720) : Math.min(innerHeight * .36, 320);
+      const desktop = innerWidth >= 960;
+      if (!desktop && innerWidth === lastW) return;
+      lastW = innerWidth;
+      const h = desktop ? Math.min(innerHeight * .82, 720) : Math.min(innerHeight * .36, 320);
       frame.style.setProperty('--z', (h / 720).toFixed(3));
     };
     sizeFrame();
@@ -30,10 +35,13 @@
   }
 
   // ---------- the closing B rebuilds each time it comes into view ----------
-  const buildObs = new IntersectionObserver(entries => entries.forEach(e => {
-    if (e.isIntersecting) { e.target.classList.remove('build'); void e.target.getBoundingClientRect(); e.target.classList.add('build'); }
-  }), { threshold: .4 });
-  if (!still) $$('.build-on-view').forEach(s => buildObs.observe(s));
+  const rebuilds = $$('.build-on-view');
+  if (rebuilds.length && !still) {
+    const buildObs = new IntersectionObserver(entries => entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.remove('build'); void e.target.getBoundingClientRect(); e.target.classList.add('build'); }
+    }), { threshold: .4 });
+    rebuilds.forEach(s => buildObs.observe(s));
+  }
 
   // ---------- features: highlight the area being read ----------
   const areaLinks = $$('.f-index a');
@@ -53,18 +61,25 @@
   const ghostBars = $$('#ghost g');
   const drifters = $$('[data-drift]');
   if (!ghostBars.length && !drifters.length) return;
+  let lastP = -1;
   function tick() {
     const vh = innerHeight;
-    if (hero) {
-      const p = Math.min(1, Math.max(0, scrollY / (hero.offsetHeight || 1)));
+    // Read every position first, once per parent, then write: mixing the two makes the browser redo layout per item.
+    const rects = new Map();
+    const shifts = drifters.map(el => {
+      const parent = el.parentElement;
+      if (!rects.has(parent)) rects.set(parent, parent.getBoundingClientRect());
+      const r = rects.get(parent);
+      const t = (r.top + r.height / 2 - vh / 2) / vh; // -1..1 around the middle of the screen
+      return (t * +el.dataset.drift * 120).toFixed(1);
+    });
+    const p = hero ? Math.min(1, Math.max(0, scrollY / (hero.offsetHeight || 1))) : 0;
+    if (p !== lastP) {
+      lastP = p;
       ghostBars.forEach((g, i) => { const [dx, dy] = SLIDE[i]; g.setAttribute('transform', `translate(${(dx * 26 * p).toFixed(2)} ${(dy * 26 * p).toFixed(2)})`); });
     }
     // Everything else drifts against the scroll as it crosses the screen.
-    drifters.forEach(el => {
-      const r = el.parentElement.getBoundingClientRect();
-      const t = (r.top + r.height / 2 - vh / 2) / vh; // -1..1 around the middle of the screen
-      el.style.transform = `translate3d(0, ${(t * +el.dataset.drift * 120).toFixed(1)}px, 0)`;
-    });
+    drifters.forEach((el, i) => { el.style.transform = `translate3d(0, ${shifts[i]}px, 0)`; });
   }
   let queued = false;
   addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; tick(); }); } }, { passive: true });
