@@ -98,7 +98,7 @@ img, video, svg { display: block; max-width: 100%; }
 .progress { display: flex; gap: 6px; }
 .progress i { width: 30px; height: 6px; border-radius: 3px; background: var(--white-2); transition: background-color .3s; }
 .progress i.on { background: var(--black); }
-.steps li { min-height: 72svh; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding-block: 40px; max-width: 540px; }
+.steps li { min-height: 50svh; display: flex; flex-direction: column; justify-content: center; gap: 16px; padding-block: 40px; max-width: 540px; }
 .num, .g-steps ol > li::before { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: var(--black); color: var(--white); font: 900 22px/1 var(--display); }
 .steps h3 { font-size: clamp(26px, 3.2vw, 40px); }
 .bits { display: flex; flex-wrap: wrap; gap: 8px; }
